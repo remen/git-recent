@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+set -eu
+
+if ! command -v fzf >/dev/null 2>&1; then
+  printf '%s\n' "fzf not found. Install with: brew install fzf" >&2
+  printf '%s' "Install now with brew? [Y/n] " >&2
+  read -r reply || reply=""
+  case "$reply" in
+    ""|"y"|"Y"|"yes"|"YES")
+      if command -v brew >/dev/null 2>&1; then
+        brew install fzf || exit 1
+      else
+        printf '%s\n' "Homebrew not found. Install it first, then run: brew install fzf" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      exit 1
+      ;;
+  esac
+fi
+
+current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+
+branch="$(
+  git for-each-ref \
+    --sort=-committerdate \
+    --format='%(refname:short)|%(committerdate:short)|%(committername)|%(subject)' \
+    refs/heads \
+  | awk -F'|' -v current_branch="$current_branch" '
+      function trunc(s, n) {
+        return length(s) > n ? substr(s, 1, n - 3) "..." : s
+      }
+      {
+        if (current_branch != "" && $1 == current_branch) next
+        b = trunc($1, 28)
+        d = trunc($2, 10)
+        c = trunc($3, 20)
+        s = trunc($4, 50)
+        printf "%-28s  %-10s  %-20s  %-50s\n", b, d, c, s
+      }
+    ' \
+  | fzf --prompt="Checkout branch> " \
+  | awk '{print $1}'
+)"
+
+if [ -n "${branch:-}" ]; then
+  git checkout "$branch"
+fi
