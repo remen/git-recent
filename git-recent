@@ -27,21 +27,21 @@ branch="$(
     --sort=-committerdate \
     --format='%(refname:short)|%(committerdate:short)|%(committername)|%(subject)' \
     refs/heads \
-  | awk -F'|' -v current_branch="$current_branch" '
+  | awk -F'|' -v current_branch="$current_branch" -v name_width=36 '
       function trunc(s, n) {
         return length(s) > n ? substr(s, 1, n - 3) "..." : s
       }
       {
         if (current_branch != "" && $1 == current_branch) next
-        b = trunc($1, 28)
+        b = trunc($1, name_width)
         d = trunc($2, 10)
         c = trunc($3, 20)
         s = trunc($4, 50)
-        printf "%-28s  %-10s  %-20s  %-50s\n", b, d, c, s
+        printf "%s\t%-*s  %-10s  %-20s  %-50s\n", $1, name_width, b, d, c, s
       }
     ' \
-  | fzf --prompt="Checkout branch> " \
-  | awk '{print $1}'
+  | fzf --prompt="Checkout branch> " --with-nth=2.. \
+  | awk -F'\t' '{print $1}'
 )"
 
 if [ -n "${branch:-}" ]; then
